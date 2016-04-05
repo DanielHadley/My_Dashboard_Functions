@@ -32,6 +32,7 @@ add_date_vars <- function(my_data, date_var){
 
 
 
+### Time Series Functions ###
 ## Daily time series
 make_daily_ts <- function(my_data, date_var){
   
@@ -177,5 +178,51 @@ make_yearly_ts <- function(my_data, date_var){
   names(yearly_ts)[2] <- "year_ending"
   
   return(yearly_ts)
+  
+}
+
+
+
+
+### Time series statistical comparisons ###
+comp_last_day_avg <- function(my_data, date_var){
+  
+  ## Compare last day to average apples to apples
+  # Turns the data into a complete time series #
+  # Filters by week day, or week end, depending on the last day
+  # Then compares the last day to the rest to see if it is 
+  # significantly above average or not
+  
+  # First we get the daily
+  daily_ts <- make_daily_ts(my_data, date_var)
+  
+  # Now find the type
+  daily_ts <- daily_ts %>% 
+    mutate(day_type = ifelse(wday(date) == 1, "weekend",
+                             ifelse(wday(date) == 7, "weekend",
+                                    "weekday")))
+  
+  last_day_type <- daily_ts$day_type[which.max(daily_ts$date)]
+  
+  # Filter for that type
+  daily_ts <- filter(daily_ts, day_type == last_day_type)
+  
+  # Now find the means and sd
+  avg_n <- mean(daily_ts$n)
+  stdev <- sd(daily_ts$n)
+  
+  last_day_n <- daily_ts$n[which.max(daily_ts$date)]
+  delta <- last_day_n - avg_n
+  
+  comparison <- ifelse(delta > 0 & delta > stdev, "significantly above average",
+                       ifelse(delta > 0 & delta < stdev, 
+                              "slightly above average",
+                              ifelse(delta < 0 & abs(delta) > stdev, 
+                                     "significantly below average",
+                                     ifelse(delta < 0 & abs(delta) < stdev, 
+                                            "slightly below average",
+                                            "average"))))
+  
+  return(paste(comparison, "for a", last_day_type))
   
 }
