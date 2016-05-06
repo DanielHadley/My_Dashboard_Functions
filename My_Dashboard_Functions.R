@@ -36,7 +36,7 @@ add_date_vars <- function(my_data, date_var){
 
 ## x-day time series
 # Decide the time increments 7, 365, whatever
-# group an summarize based on x
+# group and summarize based on x
 make_x_day_ts <- function(my_data, date_var, x_days){
   
   ## Turns the data into a complete time series ##
@@ -50,6 +50,69 @@ make_x_day_ts <- function(my_data, date_var, x_days){
   days <- my_data %>%
     group_by(date) %>% 
     summarise(n = n())
+  
+  first_day <- min(days$date)
+  last_day <- max(days$date)
+  
+  all_days <- seq.Date(from=first_day, to = last_day, b='days')
+  all_days <- all_days  %>%  as.data.frame() 
+  colnames(all_days)[1] = "date"
+  
+  # After this we will have a time series df with every date and how many of the variable
+  daily_ts = merge(days, all_days, by='date', all=TRUE)
+  daily_ts[is.na(daily_ts)] <- 0
+  
+  
+  
+  ## Now x-ly
+  # First we get the day number of the last day in our daily time series
+  # Because otherwise it ends on Sunday
+  # stackoverflow.com/questions/8030812/how-can-i-group-days-into-weeks/8031372#8031372
+  period_ending_num <- as.numeric(max(daily_ts$date))
+  
+  # Ok now we can group by x-day periods that end on the last day of the daily ts
+  x_ts <- daily_ts %>% 
+    mutate(period = (period_ending_num - as.numeric(date)) %/% x_days) %>% 
+    group_by(period) %>%
+    summarise_each(funs(sum, max)) %>% #max to get the last date
+    arrange(-period)
+  
+  x_ts <- x_ts[-1,] # Drop first row because it's likely an incomplete period
+  
+  # Clean up
+  x_ts <- x_ts %>% 
+    select(date_sum:date_max) %>% 
+    select(-date_sum)
+  
+  names(x_ts) <- gsub("_sum", "", names(x_ts))
+  names(x_ts)[2] <- "period_ending"
+  
+  return(x_ts)
+  
+}
+
+
+
+
+## x-day time series
+# Decide the time increments 7, 365, whatever
+# group and summarize based on x
+make_x_day_ts_multiple_v <- function(my_data, date_var, x_days, var_of_interest){
+  
+  ## Turns the data into a complete time series ##
+  ## The time series starts at the end, and groups by periods of X ##
+  ## Good for when you have data missing from a ts ##
+  ## And for when you want to compare current periods with the past ##
+  
+  # First we get the daily
+  my_data$date <- as.Date(my_data[,date_var])
+  v <- as.name(var_of_interest)
+  
+  days <- my_data %>%
+    group_by(date, Weapon) %>%
+    summarise(n = n()) %>% 
+    ungroup() %>% 
+    spread(Weapon, n)
   
   first_day <- min(days$date)
   last_day <- max(days$date)
@@ -140,4 +203,16 @@ comp_last_day_avg <- function(my_data, date_var){
 
 
 
- 
+### sort your time series by growth in the x time period ###
+sort_by_ts_statistical_growth <- function(my_data, date_var, x_days, var_of_interest, n_threshold){
+  
+  ## if you have time-series data with lots of different observations from a certain variable 
+  ## this will compare them to see which observations grew the most, statistically speaking, 
+  ## in a time period of x,
+  ## with some threshold of what you consider to be a small n 
+  ## It's basically a way of spotting time-series anomalies in the present period of x ##
+  
+  # First we get a time series
+  
+  
+}
