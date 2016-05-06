@@ -1,9 +1,11 @@
 # Created By Daniel Hadley Tue Apr 5 09:30:53 EDT 2016 #
 setwd("/Users/DHadley/Github/My_Dashboard_Functions")
 setwd("c:/Users/dhadley/Documents/GitHub/My_Dashboard_Functions/")
+setwd("/Users/dphnrome/Documents/Git/My_Dashboard_Functions/")
 
 library(dplyr)
 library(lubridate)
+library(tidyr)
 
 # Load Data
 my_data <- read.csv("./Baltimore.csv")
@@ -106,7 +108,7 @@ make_x_day_ts_multiple_v <- function(my_data, date_var, x_days, var_of_interest)
   
   # First we get the daily
   my_data$date <- as.Date(my_data[,date_var])
-  v <- as.name(var_of_interest)
+  my_data$v <- my_data[,var_of_interest]
   
   days <- my_data %>%
     group_by(date, Weapon) %>%
@@ -148,7 +150,7 @@ make_x_day_ts_multiple_v <- function(my_data, date_var, x_days, var_of_interest)
     select(-date_sum)
   
   names(x_ts) <- gsub("_sum", "", names(x_ts))
-  names(x_ts)[2] <- "period_ending"
+  names(x_ts)[ncol(x_ts)] <- "period_ending"
   
   return(x_ts)
   
