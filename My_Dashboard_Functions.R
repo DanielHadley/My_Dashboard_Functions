@@ -105,16 +105,22 @@ make_x_day_ts_multiple_v <- function(my_data, date_var, x_days, var_of_interest)
   ## The time series starts at the end, and groups by periods of X ##
   ## Good for when you have data missing from a ts ##
   ## And for when you want to compare current periods with the past ##
+  ## This one takes multiple observations from a variable of interest 
+  ## and makes TS for each unique observation
   
   # First we get the daily
   my_data$date <- as.Date(my_data[,date_var])
   my_data$v <- my_data[,var_of_interest]
   
+  # Blanks seemed to F up everything
+  my_data$v <- gsub("^$|^ $", "my_weird_blank", my_data$v)
+  
   days <- my_data %>%
-    group_by(date, Weapon) %>%
+    filter(v != "my_weird_blank") %>% 
+    group_by(date, v) %>%
     summarise(n = n()) %>% 
     ungroup() %>% 
-    spread(Weapon, n)
+    spread(v, n)
   
   first_day <- min(days$date)
   last_day <- max(days$date)
@@ -126,7 +132,6 @@ make_x_day_ts_multiple_v <- function(my_data, date_var, x_days, var_of_interest)
   # After this we will have a time series df with every date and how many of the variable
   daily_ts = merge(days, all_days, by='date', all=TRUE)
   daily_ts[is.na(daily_ts)] <- 0
-  
   
   
   ## Now x-ly
@@ -214,7 +219,72 @@ sort_by_ts_statistical_growth <- function(my_data, date_var, x_days, var_of_inte
   ## with some threshold of what you consider to be a small n 
   ## It's basically a way of spotting time-series anomalies in the present period of x ##
   
-  # First we get a time series
+  ### First we get a time series
+  ts <- make_x_day_ts_multiple_v(my_data, date_var, x_days, var_of_interest)
+  # to test ts <- make_x_day_ts_multiple_v(my_data, "CrimeDate", 10, "District")
   
+  
+  
+  #### Now make a few datasets and combine them
+  ts_for_names <- ts %>% 
+    select(-period_ending) 
+  
+  # Pause to get the row names
+  new_row_names <- colnames(ts_for_names)
+  
+  
+  
+  ### the last time period 
+  ts_final <- ts %>% 
+    select(-period_ending) %>% 
+    tail(n = 1) %>% 
+    t() %>% 
+    data.frame() %>% 
+    mutate(v_names = new_row_names)
+  
+  colnames(ts_final)[1] <- "final"
+  
+  
+  
+  ### the last time period expressed as a Z-Score
+  ts_z <- ts %>% 
+    select(-period_ending) %>% 
+    scale() %>% 
+    data.frame() %>% 
+    tail(n = 1) %>% 
+    t() %>% 
+    data.frame() %>% 
+    mutate(v_names = new_row_names)
+  
+  colnames(ts_z)[1] <- "final_z_score"
+  
+  
+  
+  ### the average for all time periods
+  ts_mean <- ts %>% 
+    select(-period_ending) %>% 
+    colMeans()
+  
+  ts_mean <- data.frame(ts_mean, new_row_names)
+  ts_mean <- rename(ts_mean, v_names = new_row_names)
+  
+  
+  
+  ## Now combine
+  all_together <- merge(ts_final, ts_mean, by = "v_names")
+  all_together <- merge(all_together, ts_z, by = "v_names")
+  
+  
+  # Increase in final over the average
+  all_together$per_increase_final <- (all_together$final - all_together$ts_mean) / all_together$ts_mean
+  
+  
+  # Sort and take out small n, because otherwise the largest increases will be with the lame ones
+  all_together <- all_together %>% 
+    filter(final > n_threshold) %>% 
+    arrange(-final_z_score)
+  
+
+  return(all_together)
   
 }
