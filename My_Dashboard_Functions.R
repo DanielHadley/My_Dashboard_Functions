@@ -75,19 +75,25 @@ make_x_day_ts <- function(my_data, date_var, x_days){
   # Ok now we can group by x-day periods that end on the last day of the daily ts
   x_ts <- daily_ts %>% 
     mutate(period = (period_ending_num - as.numeric(date)) %/% x_days) %>% 
+    select(-date) %>% # There was a bug when I tried to sum the date 
     group_by(period) %>%
-    summarise_each(funs(sum, max)) %>% #max to get the last date
+    summarise_each(funs(sum)) %>% 
     arrange(-period)
   
-  x_ts <- x_ts[-1,] # Drop first row because it's likely an incomplete period
+  # Max to get the last date in the period
+  x_ts_date_max <- daily_ts %>% 
+    mutate(period = (period_ending_num - as.numeric(date)) %/% x_days) %>% 
+    select(date, period) %>% # There was a bug when I tried to sum the date 
+    group_by(period) %>%
+    summarise_each(funs(max)) %>% 
+    rename(period_ending = date) %>% 
+    arrange(-period)
   
-  # Clean up
-  x_ts <- x_ts %>% 
-    select(date_sum:date_max) %>% 
-    select(-date_sum)
+  x_ts <- merge(x_ts, x_ts_date_max) %>% 
+    select(-period)
   
-  names(x_ts) <- gsub("_sum", "", names(x_ts))
-  names(x_ts)[2] <- "period_ending"
+  # Drop first row because it's likely an incomplete period
+  x_ts <- x_ts[-1,] 
   
   return(x_ts)
   
@@ -143,19 +149,25 @@ make_x_day_ts_multiple_v <- function(my_data, date_var, x_days, var_of_interest)
   # Ok now we can group by x-day periods that end on the last day of the daily ts
   x_ts <- daily_ts %>% 
     mutate(period = (period_ending_num - as.numeric(date)) %/% x_days) %>% 
+    select(-date) %>% # There was a bug when I tried to sum the date 
     group_by(period) %>%
-    summarise_each(funs(sum, max)) %>% #max to get the last date
+    summarise_each(funs(sum)) %>% 
     arrange(-period)
   
-  x_ts <- x_ts[-1,] # Drop first row because it's likely an incomplete period
+  # Max to get the last date in the period
+  x_ts_date_max <- daily_ts %>% 
+    mutate(period = (period_ending_num - as.numeric(date)) %/% x_days) %>% 
+    select(date, period) %>% # There was a bug when I tried to sum the date 
+    group_by(period) %>%
+    summarise_each(funs(max)) %>% 
+    rename(period_ending = date) %>% 
+    arrange(-period)
   
-  # Clean up
-  x_ts <- x_ts %>% 
-    select(date_sum:date_max) %>% 
-    select(-date_sum)
+  x_ts <- merge(x_ts, x_ts_date_max) %>% 
+    select(-period)
   
-  names(x_ts) <- gsub("_sum", "", names(x_ts))
-  names(x_ts)[ncol(x_ts)] <- "period_ending"
+  # Drop first row because it's likely an incomplete period
+  x_ts <- x_ts[-1,] 
   
   return(x_ts)
   
@@ -178,11 +190,11 @@ comp_last_day_avg <- function(my_data, date_var){
   
   # Now find the type
   daily_ts <- daily_ts %>% 
-    mutate(day_type = ifelse(wday(date) == 1, "weekend",
-                             ifelse(wday(date) == 7, "weekend",
+    mutate(day_type = ifelse(wday(period_ending) == 1, "weekend",
+                             ifelse(wday(period_ending) == 7, "weekend",
                                     "weekday")))
   
-  last_day_type <- daily_ts$day_type[which.max(daily_ts$date)]
+  last_day_type <- daily_ts$day_type[which.max(daily_ts$period_ending)]
   
   # Filter for that type
   daily_ts <- filter(daily_ts, day_type == last_day_type)
@@ -191,7 +203,7 @@ comp_last_day_avg <- function(my_data, date_var){
   avg_n <- mean(daily_ts$n)
   stdev <- sd(daily_ts$n)
   
-  last_day_n <- daily_ts$n[which.max(daily_ts$date)]
+  last_day_n <- daily_ts$n[which.max(daily_ts$period_ending)]
   delta <- last_day_n - avg_n
   
   comparison <- ifelse(delta > 0 & delta > stdev, "significantly above average",
