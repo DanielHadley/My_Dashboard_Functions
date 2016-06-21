@@ -12,6 +12,11 @@ my_data <- read.csv("./Baltimore.csv")
 my_data$CrimeDate <- as.Date(my_data$CrimeDate, "%m/%d/%Y")
 
 
+# If you want to work on functions uncomment these variables:
+date_var <- 2
+x_days <- 30
+
+
 # For all of these the date_var should be formatted as a month, day, year
 # It goes into the function as the name wrapped in quotes, e.g., "CrimeDate"
 
@@ -77,8 +82,7 @@ make_x_day_ts <- function(my_data, date_var, x_days){
     mutate(period = (period_ending_num - as.numeric(date)) %/% x_days) %>% 
     select(-date) %>% # There was a bug when I tried to sum the date 
     group_by(period) %>%
-    summarise_each(funs(sum)) %>% 
-    arrange(-period)
+    summarise_each(funs(sum))
   
   # Max to get the last date in the period
   x_ts_date_max <- daily_ts %>% 
@@ -86,10 +90,10 @@ make_x_day_ts <- function(my_data, date_var, x_days){
     select(date, period) %>% # There was a bug when I tried to sum the date 
     group_by(period) %>%
     summarise_each(funs(max)) %>% 
-    rename(period_ending = date) %>% 
-    arrange(-period)
+    rename(period_ending = date)
   
-  x_ts <- merge(x_ts, x_ts_date_max) %>% 
+  x_ts <- merge(x_ts, x_ts_date_max) %>%
+    arrange(-period) %>% 
     select(-period)
   
   # Drop first row because it's likely an incomplete period
@@ -151,8 +155,7 @@ make_x_day_ts_multiple_v <- function(my_data, date_var, x_days, var_of_interest)
     mutate(period = (period_ending_num - as.numeric(date)) %/% x_days) %>% 
     select(-date) %>% # There was a bug when I tried to sum the date 
     group_by(period) %>%
-    summarise_each(funs(sum)) %>% 
-    arrange(-period)
+    summarise_each(funs(sum))
   
   # Max to get the last date in the period
   x_ts_date_max <- daily_ts %>% 
@@ -160,10 +163,10 @@ make_x_day_ts_multiple_v <- function(my_data, date_var, x_days, var_of_interest)
     select(date, period) %>% # There was a bug when I tried to sum the date 
     group_by(period) %>%
     summarise_each(funs(max)) %>% 
-    rename(period_ending = date) %>% 
-    arrange(-period)
+    rename(period_ending = date)
   
-  x_ts <- merge(x_ts, x_ts_date_max) %>% 
+  x_ts <- merge(x_ts, x_ts_date_max) %>%
+    arrange(-period) %>% 
     select(-period)
   
   # Drop first row because it's likely an incomplete period
